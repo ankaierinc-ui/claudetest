@@ -1,0 +1,54 @@
+# Market Research Skills - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ============================================
+# 1. Data Analysis Tools
+# ============================================
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.14.0
+openpyxl>=3.1.0          # Excel support
+
+# ============================================
+# 2. Web Scraping Tools
+# ============================================
+beautifulsoup4>=4.12.0
+lxml>=4.9.0              # HTML/XML parser
+requests>=2.31.0
+httpx>=0.24.0            # Async HTTP client
+scrapy>=2.9.0
+selenium>=4.10.0         # Browser automation
+playwright>=1.35.0       # Modern browser automation
+
+# ============================================
+# 3. API Clients for Market Research
+# ============================================
+pytrends>=4.9.0          # Google Trends API
+tweepy>=4.14.0           # Twitter/X API
+praw>=7.7.0              # Reddit API
+google-api-python-client>=2.90.0  # Google APIs
+yfinance>=0.2.0          # Yahoo Finance API
+newsapi-python>=0.2.7    # News API
+
+# ============================================
+# 4. Data Processing & NLP
+# ============================================
+nltk>=3.8.0              # Natural Language Toolkit
+textblob>=0.17.0         # Sentiment analysis
+wordcloud>=1.9.0         # Word cloud generation
+
+# ============================================
+# 5. Export & Reporting
+# ============================================
+jinja2>=3.1.0            # Template engine
+python-docx>=0.8.0       # Word document generation
+reportlab>=4.0.0         # PDF generation
+
+# ============================================
+# 6. Utilities
+# ============================================
+python-dotenv>=1.0.0     # Environment variables
+tqdm>=4.65.0             # Progress bars
+rich>=13.4.0             # Rich terminal output

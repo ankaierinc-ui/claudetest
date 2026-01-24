@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "market-research-web": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-fetch"],
+      "description": "Web fetching for market research - fetch and analyze web content"
+    },
+    "market-research-search": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "description": "Web search for market research - search the web for market insights"
+    },
+    "market-research-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-filesystem",
+        "/home/user/claudetest/data",
+        "/home/user/claudetest/reports"
+      ],
+      "description": "File system access for storing research data and reports"
+    }
+  },
+  "notes": {
+    "installation": [
+      "1. Install Node.js if not already installed",
+      "2. Run: npm install -g @anthropic/mcp-server-fetch @anthropic/mcp-server-brave-search @anthropic/mcp-server-filesystem",
+      "3. Set BRAVE_API_KEY environment variable for search functionality",
+      "4. Create data/ and reports/ directories for file storage"
+    ],
+    "usage": [
+      "These MCP servers extend Claude's capabilities for market research:",
+      "- fetch: Retrieve and analyze web pages, APIs, and documents",
+      "- brave-search: Search the web for market trends and competitor info",
+      "- filesystem: Save research data, reports, and analysis results"
+    ]
+  }
+}
