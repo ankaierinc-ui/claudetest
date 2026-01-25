@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # n8n主服务
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=changeme123
+      - WEBHOOK_SECURITY_MODE=moderate
+      - N8N_METRICS=true
+      - N8N_LOG_LEVEL=info
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # n8n MCP服务器
+  n8n-mcp:
+    image: ghcr.io/czlonkowski/n8n-mcp:latest
+    container_name: n8n-mcp
+    environment:
+      - N8N_API_URL=http://n8n:5678
+      - N8N_API_KEY=${N8N_API_KEY}
+      - MCP_MODE=stdio
+      - LOG_LEVEL=error
+      - N8N_MCP_TELEMETRY_DISABLED=true
+    restart: unless-stopped
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n
+    # MCP服务器通过stdio与Claude Code通信，不需要暴露端口
+
+networks:
+  n8n-network:
+    driver: bridge
+
+volumes:
+  n8n_data:
+    driver: local
