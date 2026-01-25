@@ -1,0 +1,287 @@
+{
+  "name": "DTC Brand Contact Scraper",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d7f4c5e1-7e3b-4f2a-9c8d-1a2b3c4d5e6f",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// DTC Brand URLs to scrape\nconst brands = [\n  { \"name\": \"Allbirds\", \"url\": \"https://www.allbirds.com\" },\n  { \"name\": \"Warby Parker\", \"url\": \"https://www.warbyparker.com\" },\n  { \"name\": \"Glossier\", \"url\": \"https://www.glossier.com\" },\n  { \"name\": \"Casper\", \"url\": \"https://www.casper.com\" },\n  { \"name\": \"Away\", \"url\": \"https://www.awaytravel.com\" },\n  { \"name\": \"Bombas\", \"url\": \"https://www.bombas.com\" },\n  { \"name\": \"ThirdLove\", \"url\": \"https://www.thirdlove.com\" },\n  { \"name\": \"Outdoor Voices\", \"url\": \"https://www.outdoorvoices.com\" },\n  { \"name\": \"Everlane\", \"url\": \"https://www.everlane.com\" },\n  { \"name\": \"Dollar Shave Club\", \"url\": \"https://www.dollarshaveclub.com\" }\n];\n\nreturn brands.map(brand => ({ json: brand }));"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Load Brand URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer fc-e0319c5bab3c478baf14ae2fa00e50f5"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "formats",
+              "value": "[\"markdown\", \"html\"]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Scrape Homepage with Firecrawl",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract potential contact page URLs from the scraped content\nconst item = $input.item.json;\nconst baseUrl = item.url;\nconst content = item.data?.markdown || '';\nconst html = item.data?.html || '';\n\n// Common contact page patterns\nconst contactPatterns = [\n  '/contact',\n  '/contact-us',\n  '/about',\n  '/about-us',\n  '/support',\n  '/help',\n  '/customer-service'\n];\n\n// Try to find contact links in the HTML\nconst linkRegex = /href=[\"']([^\"']*(?:contact|about|support|help)[^\"']*)[\"']/gi;\nconst foundLinks = [];\nlet match;\n\nwhile ((match = linkRegex.exec(html)) !== null) {\n  let link = match[1];\n  // Convert relative URLs to absolute\n  if (link.startsWith('/')) {\n    link = new URL(link, baseUrl).href;\n  } else if (!link.startsWith('http')) {\n    continue;\n  }\n  foundLinks.push(link);\n}\n\n// Add default patterns if no links found\nif (foundLinks.length === 0) {\n  contactPatterns.forEach(pattern => {\n    foundLinks.push(new URL(pattern, baseUrl).href);\n  });\n}\n\n// Return unique URLs to scrape\nconst uniqueUrls = [...new Set(foundLinks)].slice(0, 5); // Limit to 5 pages\n\nreturn uniqueUrls.map(url => ({\n  json: {\n    brandName: item.name,\n    brandUrl: baseUrl,\n    contactPageUrl: url\n  }\n}));"
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Find Contact Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer fc-e0319c5bab3c478baf14ae2fa00e50f5"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.contactPageUrl }}"
+            },
+            {
+              "name": "formats",
+              "value": "[\"markdown\"]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+      "name": "Scrape Contact Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract contact information from scraped content\nconst item = $input.item.json;\nconst content = item.data?.markdown || '';\nconst brandName = item.brandName;\nconst brandUrl = item.brandUrl;\n\n// Email regex\nconst emailRegex = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g;\nconst emails = [...new Set(content.match(emailRegex) || [])];\n\n// Filter out common non-contact emails\nconst filteredEmails = emails.filter(email => \n  !email.includes('example.com') && \n  !email.includes('sentry.io') &&\n  !email.includes('wixpress.com') &&\n  !email.toLowerCase().includes('noreply')\n);\n\n// Phone regex (US format and international)\nconst phoneRegex = /(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-.]?([0-9]{3})[-.]?([0-9]{4})|\\+[0-9]{1,3}[-\\s.]?\\(?[0-9]{1,4}\\)?[-\\s.]?[0-9]{1,4}[-\\s.]?[0-9]{1,9}/g;\nconst phones = [...new Set(content.match(phoneRegex) || [])];\n\n// Social media regex\nconst socialPatterns = {\n  facebook: /(?:https?:\\/\\/)?(?:www\\.)?facebook\\.com\\/([a-zA-Z0-9._-]+)/g,\n  instagram: /(?:https?:\\/\\/)?(?:www\\.)?instagram\\.com\\/([a-zA-Z0-9._-]+)/g,\n  twitter: /(?:https?:\\/\\/)?(?:www\\.)?(?:twitter|x)\\.com\\/([a-zA-Z0-9._-]+)/g,\n  linkedin: /(?:https?:\\/\\/)?(?:www\\.)?linkedin\\.com\\/company\\/([a-zA-Z0-9._-]+)/g\n};\n\nconst socialMedia = {};\nfor (const [platform, regex] of Object.entries(socialPatterns)) {\n  const matches = content.match(regex);\n  if (matches && matches.length > 0) {\n    socialMedia[platform] = matches[0];\n  }\n}\n\nreturn [{\n  json: {\n    brandName: brandName,\n    brandUrl: brandUrl,\n    emails: filteredEmails.join(', '),\n    phones: phones.slice(0, 3).join(', '), // Limit to 3 phones\n    facebook: socialMedia.facebook || '',\n    instagram: socialMedia.instagram || '',\n    twitter: socialMedia.twitter || '',\n    linkedin: socialMedia.linkedin || '',\n    scrapedAt: new Date().toISOString(),\n    contactPageUrl: item.contactPageUrl\n  }\n}];"
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+      "name": "Extract Contact Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "brandName",
+              "displayName": "Brand Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "brandUrl",
+              "displayName": "Brand URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emails",
+              "displayName": "Emails",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phones",
+              "displayName": "Phones",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "facebook",
+              "displayName": "Facebook",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "instagram",
+              "displayName": "Instagram",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "twitter",
+              "displayName": "Twitter",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scrapedAt",
+              "displayName": "Scraped At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_CREDENTIALS_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand URLs": {
+      "main": [
+        [
+          {
+            "node": "Scrape Homepage with Firecrawl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Homepage with Firecrawl": {
+      "main": [
+        [
+          {
+            "node": "Find Contact Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Contact Pages": {
+      "main": [
+        [
+          {
+            "node": "Scrape Contact Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Contact Pages": {
+      "main": [
+        [
+          {
+            "node": "Extract Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-25T00:00:00.000Z",
+  "versionId": "1"
+}

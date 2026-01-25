@@ -1,0 +1,79 @@
+{
+  "description": "DTC (Direct-to-Consumer) Brand List for Contact Scraping",
+  "lastUpdated": "2026-01-25",
+  "brands": [
+    {
+      "name": "Allbirds",
+      "url": "https://www.allbirds.com",
+      "category": "Footwear & Apparel",
+      "description": "Sustainable footwear brand"
+    },
+    {
+      "name": "Warby Parker",
+      "url": "https://www.warbyparker.com",
+      "category": "Eyewear",
+      "description": "Affordable designer eyewear"
+    },
+    {
+      "name": "Glossier",
+      "url": "https://www.glossier.com",
+      "category": "Beauty & Cosmetics",
+      "description": "Skincare and makeup brand"
+    },
+    {
+      "name": "Casper",
+      "url": "https://www.casper.com",
+      "category": "Home & Sleep",
+      "description": "Mattress and sleep products"
+    },
+    {
+      "name": "Away",
+      "url": "https://www.awaytravel.com",
+      "category": "Travel & Luggage",
+      "description": "Modern travel luggage"
+    },
+    {
+      "name": "Bombas",
+      "url": "https://www.bombas.com",
+      "category": "Apparel",
+      "description": "Comfortable socks and apparel"
+    },
+    {
+      "name": "ThirdLove",
+      "url": "https://www.thirdlove.com",
+      "category": "Intimate Apparel",
+      "description": "Women's bras and underwear"
+    },
+    {
+      "name": "Outdoor Voices",
+      "url": "https://www.outdoorvoices.com",
+      "category": "Activewear",
+      "description": "Athletic and leisure wear"
+    },
+    {
+      "name": "Everlane",
+      "url": "https://www.everlane.com",
+      "category": "Apparel",
+      "description": "Transparent pricing fashion"
+    },
+    {
+      "name": "Dollar Shave Club",
+      "url": "https://www.dollarshaveclub.com",
+      "category": "Grooming",
+      "description": "Men's grooming products"
+    }
+  ],
+  "additionalBrandsToConsider": [
+    "https://www.bombas.com",
+    "https://www.brooklinen.com",
+    "https://www.harrys.com",
+    "https://www.framebridge.com",
+    "https://www.ritual.com",
+    "https://www.chewy.com",
+    "https://www.peloton.com",
+    "https://www.hims.com",
+    "https://www.fabletics.com",
+    "https://www.quip.com"
+  ],
+  "notes": "These are well-known DTC brands with independent domains and e-commerce capabilities. Brands can be added or modified as needed."
+}
