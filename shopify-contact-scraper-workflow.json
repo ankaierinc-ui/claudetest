@@ -1,0 +1,374 @@
+{
+  "name": "Shopify Store Contact Scraper - Fixed",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [50, 50],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "minutes": 0,
+              "hours": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Load Shopify URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [250, 50],
+      "parameters": {
+        "jsCode": "// Load and validate Shopify Store URLs\nconst stores = [\n  {\n    store_url: \"https://example-store.myshopify.com\",\n    store_name: \"Example Store\"\n  }\n  // Add more Shopify stores here\n];\n\n// Validate stores array\nif (!stores || stores.length === 0) {\n  throw new Error('No stores configured. Please add stores to the Load Shopify URLs node.');\n}\n\n// Validate URL format\nconst validStores = stores.filter(store => {\n  try {\n    new URL(store.store_url);\n    return store.store_name && store.store_name.trim().length > 0;\n  } catch (e) {\n    console.warn(`Invalid URL: ${store.store_url}`);\n    return false;\n  }\n});\n\nif (validStores.length === 0) {\n  throw new Error('No valid stores found after validation.');\n}\n\nreturn validStores.map(store => ({\n  json: store\n}));"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Scrape Homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 50],
+      "parameters": {
+        "url": "={{ $json.store_url }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "responseFormat": "text",
+        "timeout": 30,
+        "continueOnFail": true
+      }
+    },
+    {
+      "id": "3b",
+      "name": "Add Request Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [550, 50],
+      "parameters": {
+        "waitType": "duration",
+        "duration": 2
+      }
+    },
+    {
+      "id": "4",
+      "name": "Preserve Store Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 50],
+      "parameters": {
+        "jsCode": "// Preserve original store metadata and validate HTTP response\nconst items = $input.all();\n\nreturn items.map(item => {\n  try {\n    const storeData = item.json;\n    \n    // Check HTTP status code\n    const statusCode = item.json.statusCode || 0;\n    if (statusCode >= 400) {\n      return {\n        json: {\n          store_url: storeData.store_url,\n          store_name: storeData.store_name,\n          homepage_content: '',\n          error: `HTTP ${statusCode}: Failed to fetch homepage`,\n          scraped_pages: [],\n          scraped_at: new Date().toISOString()\n        }\n      };\n    }\n\n    // Get page content from HTTP response\n    let homepageContent = '';\n    if (item.json.body) {\n      homepageContent = typeof item.json.body === 'string' ? item.json.body : JSON.stringify(item.json.body);\n    }\n\n    // Validate that we actually got content\n    if (homepageContent.length === 0) {\n      return {\n        json: {\n          store_url: storeData.store_url,\n          store_name: storeData.store_name,\n          homepage_content: '',\n          error: 'No content received from homepage',\n          scraped_pages: [],\n          scraped_at: new Date().toISOString()\n        }\n      };\n    }\n\n    return {\n      json: {\n        store_url: storeData.store_url,\n        store_name: storeData.store_name,\n        homepage_content: homepageContent,\n        statusCode: statusCode,\n        scraped_pages: ['homepage'],\n        scraped_at: new Date().toISOString()\n      }\n    };\n  } catch (error) {\n    return {\n      json: {\n        store_url: item.json.store_url,\n        store_name: item.json.store_name,\n        homepage_content: '',\n        error: error.message,\n        scraped_pages: [],\n        scraped_at: new Date().toISOString()\n      }\n    };\n  }\n});"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Find Contact Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 50],
+      "parameters": {
+        "jsCode": "// Find contact page URLs from common Shopify paths\nconst items = $input.all();\n\nreturn items.map(item => {\n  const storeUrl = item.json.store_url;\n\n  try {\n    // Extract base URL\n    const urlObj = new URL(storeUrl);\n    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;\n\n    // Common contact page paths on Shopify stores\n    const contactPaths = [\n      '/pages/contact',\n      '/pages/contact-us',\n      '/contact',\n      '/contact-us',\n      '/pages/about',\n      '/pages/support',\n      '/support',\n      '/help',\n      '/pages/locations',\n      '/locations',\n      '/pages/faq',\n      '/faq'\n    ];\n    \n    const contact_urls = contactPaths.map(path => baseUrl + path);\n\n    return {\n      json: {\n        store_url: item.json.store_url,\n        store_name: item.json.store_name,\n        homepage_content: item.json.homepage_content,\n        contact_urls: contact_urls,\n        scraped_pages: item.json.scraped_pages || [],\n        error: item.json.error,\n        scraped_at: item.json.scraped_at\n      }\n    };\n  } catch (error) {\n    return {\n      json: {\n        store_url: item.json.store_url,\n        store_name: item.json.store_name,\n        homepage_content: item.json.homepage_content,\n        contact_urls: [],\n        error: `Failed to generate contact URLs: ${error.message}`,\n        scraped_at: item.json.scraped_at\n      }\n    };\n  }\n});"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Prepare Batch URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 50],
+      "parameters": {
+        "jsCode": "// Prepare batch URLs for scraping - convert array to multiple items\n// FIXED: Use $input.all() instead of $input.first() to process ALL stores\nconst items = $input.all();\nconst results = [];\n\nitems.forEach(item => {\n  const contactUrls = item.json.contact_urls || [];\n  const storeUrl = item.json.store_url;\n  const storeName = item.json.store_name;\n  const homepageContent = item.json.homepage_content;\n\n  if (contactUrls.length === 0) {\n    // No contact URLs to scrape\n    results.push({\n      json: {\n        store_url: storeUrl,\n        store_name: storeName,\n        homepage_content: homepageContent,\n        url: storeUrl,\n        page_type: 'homepage',\n        batch_info: 'no_contact_pages'\n      }\n    });\n  } else {\n    // Create one item per contact URL\n    contactUrls.forEach((contactUrl, index) => {\n      results.push({\n        json: {\n          store_url: storeUrl,\n          store_name: storeName,\n          homepage_content: homepageContent,\n          url: contactUrl,\n          page_type: 'contact_page',\n          page_index: index\n        }\n      });\n    });\n  }\n});\n\nreturn results;"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Batch Scrape Contact Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 50],
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "responseFormat": "text",
+        "timeout": 20,
+        "continueOnFail": true
+      }
+    },
+    {
+      "id": "7b",
+      "name": "Add Batch Request Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1350, 50],
+      "parameters": {
+        "waitType": "duration",
+        "duration": 1
+      }
+    },
+    {
+      "id": "8",
+      "name": "Extract Contact Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 50],
+      "parameters": {
+        "jsCode": "// Extract email and phone from collected content\n// FIXED: Properly group data by store_url and consolidate all page contents\nconst items = $input.all();\n\n// Group by store_url to consolidate all pages for each store\nconst storeMap = {};\n\nitems.forEach(item => {\n  const storeUrl = item.json.store_url;\n  \n  if (!storeMap[storeUrl]) {\n    storeMap[storeUrl] = {\n      store_url: storeUrl,\n      store_name: item.json.store_name,\n      all_content: item.json.homepage_content || '',\n      page_count: 0\n    };\n  }\n  \n  // Consolidate content from all pages (homepage + contact pages)\n  if (item.json.body) {\n    const pageContent = typeof item.json.body === 'string' ? item.json.body : JSON.stringify(item.json.body);\n    // Only add if HTTP request was successful (statusCode < 400)\n    const statusCode = item.json.statusCode || 0;\n    if (statusCode < 400 && statusCode !== 0) {\n      storeMap[storeUrl].all_content += '\\n' + pageContent;\n      storeMap[storeUrl].page_count++;\n    }\n  }\n});\n\n// Improved email regex - more strict validation\nfunction extractEmails(text) {\n  // Match email pattern but exclude obviously invalid ones\n  const emailRegex = /([a-zA-Z0-9][a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]*@[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)/g;\n  const emails = text.match(emailRegex) || [];\n  \n  return [...new Set(emails)].filter(email => {\n    const lowered = email.toLowerCase();\n    // Filter out common non-contact emails\n    return !lowered.includes('noreply') && \n           !lowered.includes('no-reply') &&\n           !lowered.includes('example@example.com') &&\n           !lowered.includes('test@') &&\n           !lowered.match(/^\\d+@/) &&  // Don't start with numbers\n           email.length < 100;  // Reasonable email length\n  }).sort();\n}\n\n// FIXED: Improved phone regex with proper capturing\nfunction extractPhones(text) {\n  const patterns = [\n    // US/Canada format: +1-xxx-xxx-xxxx, (xxx) xxx-xxxx, xxx-xxx-xxxx, etc\n    /(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-.]?([0-9]{3})[-.]?([0-9]{4})/g,\n    // International format: +xxx-xxx-xxx-xxxx\n    /\\+[0-9]{1,3}[-.]?[0-9]{6,14}/g\n  ];\n  \n  let phones = [];\n  patterns.forEach(pattern => {\n    let match;\n    while ((match = pattern.exec(text)) !== null) {\n      phones.push(match[0]);\n    }\n  });\n  \n  // Remove duplicates and clean up\n  return [...new Set(phones)]\n    .map(p => p.trim())\n    .filter(p => {\n      // Remove if looks like decimal number or too short\n      return p.length >= 10 && !p.match(/^[0-9]{1,2}$/);\n    })\n    .sort();\n}\n\nfunction prioritizeEmails(emails) {\n  if (emails.length === 0) return { primary: '', secondary: '' };\n  \n  // Prefer contact/support emails\n  const contactEmail = emails.find(e => \n    e.toLowerCase().includes('contact') || \n    e.toLowerCase().includes('info')\n  );\n  const supportEmail = emails.find(e => e.toLowerCase().includes('support'));\n  \n  return {\n    primary: contactEmail || emails[0],\n    secondary: supportEmail || emails[1] || ''\n  };\n}\n\nfunction prioritizePhones(phones) {\n  if (phones.length === 0) return { primary: '', secondary: '' };\n  \n  return {\n    primary: phones[0],\n    secondary: phones[1] || ''\n  };\n}\n\n// Process each store\nconst results = [];\n\nObject.values(storeMap).forEach(store => {\n  const emails = extractEmails(store.all_content);\n  const phones = extractPhones(store.all_content);\n  \n  const emailPriority = prioritizeEmails(emails);\n  const phonePriority = prioritizePhones(phones);\n\n  results.push({\n    json: {\n      store_url: store.store_url,\n      store_name: store.store_name,\n      primary_email: emailPriority.primary,\n      secondary_email: emailPriority.secondary,\n      all_emails: emails.join('; '),\n      primary_phone: phonePriority.primary,\n      secondary_phone: phonePriority.secondary,\n      all_phones: phones.join('; '),\n      email_found: emailPriority.primary.length > 0,\n      phone_found: phonePriority.primary.length > 0,\n      pages_scraped: store.page_count + 1\n    }\n  });\n});\n\nreturn results;"
+      }
+    },
+    {
+      "id": "9",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1650, 50],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1hbMFXnaSzzTFkRDhhqdWVshu7xmuDIDtVspPHJyXLqw",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1489016821,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "store_url": "store_url",
+            "store_name": "store_name",
+            "primary_email": "primary_email",
+            "secondary_email": "secondary_email",
+            "all_emails": "all_emails",
+            "primary_phone": "primary_phone",
+            "secondary_phone": "secondary_phone",
+            "all_phones": "all_phones",
+            "email_found": "email_found",
+            "phone_found": "phone_found",
+            "pages_scraped": "pages_scraped"
+          },
+          "matchingColumns": [
+            "store_url",
+            "store_name",
+            "primary_email",
+            "secondary_email",
+            "all_emails",
+            "primary_phone",
+            "secondary_phone",
+            "all_phones",
+            "email_found",
+            "phone_found",
+            "pages_scraped"
+          ],
+          "schema": [
+            {
+              "id": "store_url",
+              "displayName": "Store URL"
+            },
+            {
+              "id": "store_name",
+              "displayName": "Store Name"
+            },
+            {
+              "id": "primary_email",
+              "displayName": "Primary Email"
+            },
+            {
+              "id": "secondary_email",
+              "displayName": "Secondary Email"
+            },
+            {
+              "id": "all_emails",
+              "displayName": "All Emails Found"
+            },
+            {
+              "id": "primary_phone",
+              "displayName": "Primary Phone"
+            },
+            {
+              "id": "secondary_phone",
+              "displayName": "Secondary Phone"
+            },
+            {
+              "id": "all_phones",
+              "displayName": "All Phones Found"
+            },
+            {
+              "id": "email_found",
+              "displayName": "Email Found"
+            },
+            {
+              "id": "phone_found",
+              "displayName": "Phone Found"
+            },
+            {
+              "id": "pages_scraped",
+              "displayName": "Pages Scraped"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "10",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 50],
+      "parameters": {
+        "jsCode": "// Summary and logging\nconst items = $input.all();\n\nconst summary = {\n  total_stores: items.length,\n  email_found: items.filter(i => i.json.email_found).length,\n  phone_found: items.filter(i => i.json.phone_found).length,\n  both_found: items.filter(i => i.json.email_found && i.json.phone_found).length,\n  email_success_rate: '0%',\n  phone_success_rate: '0%',\n  processed_at: new Date().toISOString()\n};\n\nif (summary.total_stores > 0) {\n  summary.email_success_rate = (summary.email_found / summary.total_stores * 100).toFixed(2) + '%';\n  summary.phone_success_rate = (summary.phone_found / summary.total_stores * 100).toFixed(2) + '%';\n}\n\nconsole.log('========== SCRAPING SUMMARY ==========');\nconsole.log(`Total Stores: ${summary.total_stores}`);\nconsole.log(`Email Found: ${summary.email_found} (${summary.email_success_rate})`);\nconsole.log(`Phone Found: ${summary.phone_found} (${summary.phone_success_rate})`);\nconsole.log(`Both Found: ${summary.both_found}`);\nconsole.log(`Processed At: ${summary.processed_at}`);\nconsole.log('=====================================');\n\nreturn [{\n  json: summary\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Shopify URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Shopify URLs": {
+      "main": [
+        [
+          {
+            "node": "Scrape Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Homepage": {
+      "main": [
+        [
+          {
+            "node": "Add Request Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Request Delay": {
+      "main": [
+        [
+          {
+            "node": "Preserve Store Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve Store Metadata": {
+      "main": [
+        [
+          {
+            "node": "Find Contact Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Contact Pages": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch URLs": {
+      "main": [
+        [
+          {
+            "node": "Batch Scrape Contact Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Scrape Contact Pages": {
+      "main": [
+        [
+          {
+            "node": "Add Batch Request Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Batch Request Delay": {
+      "main": [
+        [
+          {
+            "node": "Extract Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "createdAt": "2026-01-29T10:00:00.000000",
+  "id": "shopify-contact-scraper-fixed",
+  "version": 2
+}
