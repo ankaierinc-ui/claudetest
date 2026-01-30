@@ -1,0 +1,42 @@
+{
+  "name": "shopify-contact-scraper",
+  "version": "3.0.0",
+  "description": "Secure Shopify contact information scraper with n8n workflow automation",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:security": "jest --testPathPattern='(encryption|url-validator|contact-extractor)'",
+    "lint": "eslint .",
+    "docs": "echo 'See ./docs/ directory for documentation'"
+  },
+  "keywords": [
+    "shopify",
+    "contact-scraper",
+    "n8n",
+    "automation",
+    "security"
+  ],
+  "author": "Security Team",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.53.0"
+  },
+  "dependencies": {},
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "utils/**/*.js",
+      "!utils/**/*.test.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
