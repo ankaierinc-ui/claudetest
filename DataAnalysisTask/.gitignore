@@ -1,0 +1,20 @@
+# Ignore cloned repositories (they have their own .git)
+claude-code-data-science-team/
+
+# Data files (add specific files you want to track)
+*.csv
+*.xlsx
+*.xls
+*.json
+*.parquet
+
+# Analysis outputs
+*.png
+*.jpg
+*.pdf
+*.html
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
