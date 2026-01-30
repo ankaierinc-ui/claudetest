@@ -1,0 +1,42 @@
+# Local IDE and Agent Configuration
+.agents/
+.claude/
+.opencode/
+
+# Node modules
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+
+# IDE specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build and distribution
+dist/
+build/
+.next/
+out/
+
+# Cache
+.cache/
+.eslintcache
+.prettierignore
