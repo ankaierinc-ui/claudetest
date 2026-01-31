@@ -8,8 +8,8 @@ claude-code-data-science-team/
 *.json
 *.parquet
 
-# Analysis outputs
-*.png
+# Analysis outputs (allow charts folder)
+# *.png  # Commented to allow chart images
 *.jpg
 *.pdf
 *.html
